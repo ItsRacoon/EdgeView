@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -95,7 +96,10 @@ public class MainActivity extends AppCompatActivity {
                 byte[] bytesToRender;
 
                 if (modeToggle.isChecked()) {
+                    long t0 = System.nanoTime();
                     bytesToRender = NativeLib.processFrameSafe(rgba, width, height);
+                    long t1 = System.nanoTime();
+                    Log.d("EdgeView", "proc ms: " + (t1 - t0) / 1_000_000);
                 } else {
                     bytesToRender = rgba;
                 }

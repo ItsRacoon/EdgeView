@@ -92,41 +92,54 @@ public class CameraFrameProvider {
         final int width = image.getWidth();
         final int height = image.getHeight();
         final ImageProxy.PlaneProxy[] planes = image.getPlanes();
+
+        // NV21 has a single byte per pixel for Y, and a single byte for each V and U component
+        // The VU plane is subsampled by 2 in each dimension.
         final int yuvSize = width * height * 3 / 2;
         final byte[] nv21 = new byte[yuvSize];
+
         final ByteBuffer yBuffer = planes[0].getBuffer();
         final ByteBuffer uBuffer = planes[1].getBuffer();
         final ByteBuffer vBuffer = planes[2].getBuffer();
+
         final int yRowStride = planes[0].getRowStride();
         final int uRowStride = planes[1].getRowStride();
         final int vRowStride = planes[2].getRowStride();
+
+        final int uPixelStride = planes[1].getPixelStride();
         final int vPixelStride = planes[2].getPixelStride();
 
         // Copy Y plane
         int yPos = 0;
-        for (int row = 0; row < height; ++row) {
-            yBuffer.position(row * yRowStride);
-            yBuffer.get(nv21, yPos, width);
-            yPos += width;
-        }
-
-        // Copy VU plane
-        final int chromaWidth = width / 2;
-        final int chromaHeight = height / 2;
-        int vuPos = width * height;
-        final byte[] vRow = new byte[vRowStride];
-
-        for (int row = 0; row < chromaHeight; ++row) {
-            vBuffer.position(row * vRowStride);
-            vBuffer.get(vRow, 0, vRowStride);
-             uBuffer.position(row * uRowStride);
-
-            for (int col = 0; col < chromaWidth; ++col) {
-                final int vPos = col * vPixelStride;
-                nv21[vuPos++] = vRow[vPos];
-                nv21[vuPos++] = uBuffer.get();
+        if (yRowStride == width) {
+            yBuffer.get(nv21, 0, width * height);
+            yPos = width * height;
+        } else {
+             for (int row = 0; row < height; ++row) {
+                yBuffer.position(row * yRowStride);
+                yBuffer.get(nv21, yPos, width);
+                yPos += width;
             }
         }
+        
+        // Copy VU data. NV21 has interleaved V, U, V, U...
+        int vuPos = width * height;
+        final int chromaHeight = height / 2;
+        final int chromaWidth = width / 2;
+
+        for (int row = 0; row < chromaHeight; ++row) {
+            for (int col = 0; col < chromaWidth; ++col) {
+                int vPos = row * vRowStride + col * vPixelStride;
+                int uPos = row * uRowStride + col * uPixelStride;
+                
+                // V is first in NV21
+                if (vuPos < yuvSize - 1) {
+                    nv21[vuPos++] = vBuffer.get(vPos);
+                    nv21[vuPos++] = uBuffer.get(uPos);
+                }
+            }
+        }
+
         return nv21;
     }
 }

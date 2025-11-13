@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 
 project("EdgeViewNative")
 
+# Add linker flag for 16KB page size alignment
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
+
 # --- OpenCV Configuration ---
 # Set the path to your prebuilt OpenCV .so file. This path is relative
 # to this CMakeLists.txt file. Update the path for your project structure.

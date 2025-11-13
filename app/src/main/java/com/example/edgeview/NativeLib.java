@@ -6,6 +6,10 @@ package com.example.edgeview;
  */
 public final class NativeLib {
     static {
+        // Load dependencies first, in order
+        System.loadLibrary("c++_shared");
+        System.loadLibrary("opencv_java4");
+        // Load our library last
         System.loadLibrary("native-lib");
     }
 
