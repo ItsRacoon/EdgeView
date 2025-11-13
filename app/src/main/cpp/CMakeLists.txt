@@ -24,3 +24,9 @@ find_library(log-lib
 target_link_libraries(native-lib
                       ${OPENCV_LIB_PATH}
                       ${log-lib})
+
+# --- OpenCV Link ---
+# Instructions: Place libopencv_java4.so in app/src/main/jniLibs/<abi>/libopencv_java4.so
+#
+# Example for armeabi-v7a. Merge this with the existing target_link_libraries command.
+# target_link_libraries(native-lib ${CMAKE_SOURCE_DIR}/../jniLibs/armeabi-v7a/libopencv_java4.so ${log-lib})

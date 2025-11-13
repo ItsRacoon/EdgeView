@@ -1,0 +1,12 @@
+{
+  "name": "web",
+  "version": "1.0.0",
+  "description": "A simple web client to display a video stream.",
+  "main": "main.js",
+  "scripts": {
+    "start": "npx http-server . -p 8080"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {}
+}
