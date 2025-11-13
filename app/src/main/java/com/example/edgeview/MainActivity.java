@@ -11,7 +11,7 @@ import androidx.core.view.WindowInsetsCompat;
 public class MainActivity extends AppCompatActivity {
 
     static {
-        System.loadLibrary("edgeview");
+        System.loadLibrary("native-lib");
     }
 
     @Override
