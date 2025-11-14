@@ -1,4 +1,4 @@
-# EdgeView: Real-time Camera, OpenCV, and OpenGL on Android
+# EdgeView: Real-time Camera, OpenCV, and OpenGL on Android 
 
 EdgeView is an advanced Android project demonstrating a real-time computer vision pipeline. It captures a live camera feed, processes it in C++ using OpenCV, and renders the output efficiently to the screen with OpenGL ES. The project also includes a simple TypeScript web-based viewer to display a sample processed frame.
 
