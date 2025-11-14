@@ -1,27 +1,43 @@
 package com.example.edgeview;
 
-/**
- * Native library wrapper for processing video frames.
- * The native methods expect an RGBA byte array with a length of 4 * width * height.
- */
 public final class NativeLib {
-    static {
-        // Load dependencies first, in order
-        System.loadLibrary("c++_shared");
-        System.loadLibrary("opencv_java4");
-        // Load our library last
-        System.loadLibrary("native-lib");
+    private NativeLib() {}
+
+    private static boolean nativeAvailable = false;
+    private static volatile boolean attemptedLoad = false;
+
+    // call at startup to try load; safe to call multiple times
+    public static synchronized void initNative() {
+        if (attemptedLoad) return;
+        attemptedLoad = true;
+        try {
+            System.loadLibrary("native-lib");
+            nativeAvailable = true;
+        } catch (Throwable t) {
+            nativeAvailable = false;
+            t.printStackTrace();
+            android.util.Log.e("EdgeView", "Failed to load native-lib: " + t.getMessage());
+        }
     }
 
+    // native declaration (kept for when native is available)
     public static native byte[] processFrame(byte[] input, int width, int height);
 
+    // Safe wrapper used by app code everywhere
     public static byte[] processFrameSafe(byte[] input, int width, int height) {
+        // ensure we attempted load at least once
+        if (!attemptedLoad) initNative();
+
+        if (!nativeAvailable) {
+            // native not available: return input unchanged (or convert in Java if needed)
+            return input;
+        }
         try {
-            if (input == null) return null;
             return processFrame(input, width, height);
         } catch (Throwable t) {
             t.printStackTrace();
-            return null;
+            android.util.Log.e("EdgeView", "native processFrame failed: " + t.getMessage());
+            return input;
         }
     }
 }

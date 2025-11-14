@@ -1,35 +1,34 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.22.1)
+project(edgeview LANGUAGES C CXX)
 
-project("EdgeViewNative")
+set(SRC_FILES
+    process.cpp
+    native_utils.cpp
+    edgeview.cpp
+)
 
-# Add linker flag for 16KB page size alignment
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
+add_library(native-lib SHARED ${SRC_FILES})
 
-# --- OpenCV Configuration ---
-# Set the path to your prebuilt OpenCV .so file. This path is relative
-# to this CMakeLists.txt file. Update the path for your project structure.
-# Using ${ANDROID_ABI} makes it work for different architectures.
-set(OPENCV_LIB_PATH ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libopencv_java4.so)
+target_include_directories(native-lib PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
 
-# Add the shared library from the specified C++ source files
-add_library(native-lib SHARED
-            process.cpp
-            native_utils.cpp)
+find_library(log-lib log)
 
-# Add the include path for your own header files
-include_directories(../cpp/include)
+set(OPENCV_LIB_DIR ${CMAKE_SOURCE_DIR}/../jniLibs/${CMAKE_ANDROID_ARCH_ABI})
+set(OPENCV_LIB ${OPENCV_LIB_DIR}/libopencv_java4.so)
 
-# Find the Android logging library
-find_library(log-lib
-             log)
+if(EXISTS ${OPENCV_LIB})
+    message(STATUS "Linking OpenCV from: ${OPENCV_LIB}")
+    add_library(opencv_java4 SHARED IMPORTED)
+    set_target_properties(opencv_java4 PROPERTIES IMPORTED_LOCATION ${OPENCV_LIB})
+else()
+    message(FATAL_ERROR "OpenCV .so not found for ABI ${CMAKE_ANDROID_ARCH_ABI}. Expected: ${OPENCV_LIB}\n    Place libopencv_java4.so under app/src/main/jniLibs/<abi>/libopencv_java4.so")
+endif()
 
-# Link all required libraries to your native-lib
-target_link_libraries(native-lib
-                      ${OPENCV_LIB_PATH}
-                      ${log-lib})
+target_link_libraries(native-lib PRIVATE opencv_java4 ${log-lib} c++_static)
 
-# --- OpenCV Link ---
-# Instructions: Place libopencv_java4.so in app/src/main/jniLibs/<abi>/libopencv_java4.so
-#
-# Example for armeabi-v7a. Merge this with the existing target_link_libraries command.
-# target_link_libraries(native-lib ${CMAKE_SOURCE_DIR}/../jniLibs/armeabi-v7a/libopencv_java4.so ${log-lib})
+set_target_properties(native-lib PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+)

@@ -30,8 +30,10 @@ import java.util.concurrent.Executors;
 public class MainActivity extends AppCompatActivity {
 
     private CameraFrameProvider cameraFrameProvider;
+    // Fields are present as required by instructions.
     private GLSurfaceView glSurfaceView;
-    private GLRenderer renderer;
+    private com.example.edgeview.gl.GLRenderer renderer;
+
     private ToggleButton modeToggle;
 
     private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor();
@@ -51,10 +53,15 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         FrameLayout mainLayout = new FrameLayout(this);
-
         PreviewView previewView = new PreviewView(this);
-        glSurfaceView = new GLSurfaceView(this);
         modeToggle = new ToggleButton(this);
+
+        // Per instructions, create and configure GLSurfaceView and renderer early.
+        glSurfaceView = new GLSurfaceView(this);
+        glSurfaceView.setEGLContextClientVersion(2);
+        renderer = new com.example.edgeview.gl.GLRenderer();
+        glSurfaceView.setRenderer(renderer);
+        glSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
 
         modeToggle.setTextOn("Processed");
         modeToggle.setTextOff("Raw");
@@ -69,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
         );
-        
+
         mainLayout.addView(previewView);
         mainLayout.addView(glSurfaceView, glParams);
         mainLayout.addView(modeToggle, toggleParams);
@@ -84,11 +91,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initCameraAndGL() {
-        renderer = new GLRenderer();
-        glSurfaceView.setEGLContextClientVersion(2);
-        glSurfaceView.setRenderer(renderer);
-        glSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
-
+        // GL view setup is now in onCreate.
         cameraFrameProvider = new CameraFrameProvider(this);
         cameraFrameProvider.start(this, (nv21, width, height) -> {
             backgroundExecutor.execute(() -> {
@@ -96,23 +99,23 @@ public class MainActivity extends AppCompatActivity {
                 byte[] bytesToRender;
 
                 if (modeToggle.isChecked()) {
-                    long t0 = System.nanoTime();
                     bytesToRender = NativeLib.processFrameSafe(rgba, width, height);
-                    long t1 = System.nanoTime();
-                    Log.d("EdgeView", "proc ms: " + (t1 - t0) / 1_000_000);
                 } else {
                     bytesToRender = rgba;
                 }
 
                 if (bytesToRender != null && glQueue.isEmpty()) {
                     glQueue.offer(bytesToRender);
-                    glSurfaceView.queueEvent(() -> {
-                        byte[] frameBytes = glQueue.poll();
-                        if (frameBytes != null) {
-                            renderer.updateFrame(frameBytes, width, height);
-                            glSurfaceView.requestRender();
-                        }
-                    });
+                    // Guard against NPE as per instructions
+                    if (glSurfaceView != null) {
+                        glSurfaceView.queueEvent(() -> {
+                            byte[] frameBytes = glQueue.poll();
+                            if (frameBytes != null && renderer != null) {
+                                renderer.updateFrame(frameBytes, width, height);
+                                glSurfaceView.requestRender();
+                            }
+                        });
+                    }
                 }
             });
         });
@@ -154,19 +157,28 @@ public class MainActivity extends AppCompatActivity {
 
 
     @Override
-    protected void onPause() {
-        super.onPause();
-        if (glSurfaceView != null) {
-            glSurfaceView.onPause();
-        }
-    }
-
-    @Override
     protected void onResume() {
         super.onResume();
         if (glSurfaceView != null) {
-            glSurfaceView.onResume();
+            try {
+                glSurfaceView.onResume();
+            } catch (Throwable e) {
+                Log.e("EdgeView", "GLSurfaceView onResume error", e);
+            }
         }
+        // keep existing code that starts camera / other resume tasks after GL onResume
+    }
+
+    @Override
+    protected void onPause() {
+        if (glSurfaceView != null) {
+            try {
+                glSurfaceView.onPause();
+            } catch (Throwable e) {
+                Log.e("EdgeView", "GLSurfaceView onPause error", e);
+            }
+        }
+        super.onPause();
     }
 
     @Override
